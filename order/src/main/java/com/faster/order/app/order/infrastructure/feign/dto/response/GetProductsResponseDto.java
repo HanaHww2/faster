@@ -1,7 +1,7 @@
 package com.faster.order.app.order.infrastructure.feign.dto.response;
 
-import com.faster.order.app.order.application.dto.request.GetProductsApplicationResponseDto;
-import com.faster.order.app.order.application.dto.request.GetProductsApplicationResponseDto.GetProductApplicationResponseDto;
+import com.faster.order.app.order.application.dto.response.GetProductsApplicationResponseDto;
+import com.faster.order.app.order.application.dto.response.GetProductsApplicationResponseDto.GetProductApplicationResponseDto;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;

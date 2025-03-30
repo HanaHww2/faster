@@ -51,6 +51,18 @@ public record SaveOrderApplicationRequestDto(
         );
   }
 
+  public Map<UUID, Integer> toProductStocksMapForRollback() {
+    return this.orderItems()
+        .stream()
+        .collect(
+            Collectors.toMap(
+                SaveOrderItemApplicationRequestDto::productId,
+                item -> - item.quantity(),
+                Integer::sum
+            )
+        );
+  }
+
   @Builder
   public record SaveOrderItemApplicationRequestDto(
       UUID productId,

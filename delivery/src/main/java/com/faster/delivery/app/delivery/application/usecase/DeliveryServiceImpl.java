@@ -392,16 +392,18 @@ public class DeliveryServiceImpl implements DeliveryService {
     Map<UUID, List<DeliveryRoute>> deliveryRoutesOfSourceHubId = routes.stream()
         .collect(Collectors.groupingBy(DeliveryRoute::getSourceHubId));
     for(Entry<UUID, List<DeliveryRoute>> entry : deliveryRoutesOfSourceHubId.entrySet()){
+
+      // 목적지로 분리
+      Map<UUID, List<DeliveryRoute>> deliveryRoutesOfDestinationHubId = entry.getValue().stream()
+          .collect(Collectors.groupingBy(DeliveryRoute::getDestinationHubId));
+
       // 배송 담당자 배정 요청 명수 N명 (같은 출발지에서 다른 배송지 N개)
-      int requiredAssignManagerCount = entry.getValue().size();
+      int requiredAssignManagerCount = deliveryRoutesOfDestinationHubId.keySet().size();
       List<AssignDeliveryManagerApplicationResponse.DeliveryManagerInfo> deliveryManagerInfos =
           deliveryManagerClient.assignCompanyDeliveryManager(
                   null, DeliveryManagerType.HUB_DELIVERY, requiredAssignManagerCount)
               .deliveryManagers();
 
-      // 목적지로 분리
-      Map<UUID, List<DeliveryRoute>> deliveryRoutesOfDestinationHubId = entry.getValue().stream()
-          .collect(Collectors.groupingBy(DeliveryRoute::getDestinationHubId));
       int deliveryManagerInfosIdx = 0;
       for(Entry<UUID, List<DeliveryRoute>> sameRoutesEntry : deliveryRoutesOfDestinationHubId.entrySet()){
         // 출발지 - 목적지 같으면 하나의 배정담당자에게 지정
@@ -415,6 +417,30 @@ public class DeliveryServiceImpl implements DeliveryService {
     }
 
     return null;
+  }
+
+  @Override
+  public UUID cancelDeliveryInternal(UUID deliveryId, CurrentUserInfoDto userInfo) {
+
+    // 배송 정보 조회
+    Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNullFetchJoin(deliveryId)
+        .orElseThrow(() -> new CustomException(ApiErrorCode.NOT_FOUND));
+
+    // 배송 정보 취소
+    delivery.cancel();
+    return delivery.getId();
+  }
+
+  @Override
+  public UUID cancelRollbackDeliveryInternal(UUID deliveryId, CurrentUserInfoDto userInfo) {
+
+    // 배송 정보 조회
+    Delivery delivery = deliveryRepository.findByIdAndDeletedAtIsNullFetchJoin(deliveryId)
+        .orElseThrow(() -> new CustomException(ApiErrorCode.NOT_FOUND));
+
+    // 배송 정보 취소 롤백
+    delivery.rollbackCancel();
+    return delivery.getId();
   }
 
   private void checkRole(CurrentUserInfoDto userInfoDto, Delivery delivery) {

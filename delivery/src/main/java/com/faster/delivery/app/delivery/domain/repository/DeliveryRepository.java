@@ -15,4 +15,6 @@ public interface DeliveryRepository {
   Page<Delivery> searchDeliveryList(DeliveryCriteria criteria, Pageable pageable);
 
   List<DeliveryRoute> findRoutesWithMissingManager();
+
+  Optional<Delivery> findByIdAndDeletedAtIsNullFetchJoin(UUID deliveryId);
 }

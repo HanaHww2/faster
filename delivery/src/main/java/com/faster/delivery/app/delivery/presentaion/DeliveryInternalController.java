@@ -64,6 +64,36 @@ public class DeliveryInternalController {
         .body(ApiResponse.of(HttpStatus.OK, "Success", Map.of("deliveryId", updatedDeliveryId)));
   }
 
+  @Operation(summary = "배송 취소", description = "배송 취소 API 입니다.")
+  @AuthCheck(roles = {UserRole.ROLE_COMPANY, UserRole.ROLE_HUB, UserRole.ROLE_MASTER})
+  @PatchMapping("/{deliveryId}/cancel")
+  public ResponseEntity<ApiResponse<Map<String, UUID>>> cancelDelivery(
+      @PathVariable UUID deliveryId,
+      @CurrentUserInfo CurrentUserInfoDto userInfo) {
+
+
+    UUID updatedDeliveryId = deliveryService.cancelDeliveryInternal(deliveryId, userInfo);
+
+    return ResponseEntity
+        .status(HttpStatus.OK.value())
+        .body(ApiResponse.of(HttpStatus.OK, "Success", Map.of("deliveryId", updatedDeliveryId)));
+  }
+
+  @Operation(summary = "배송 취소 롤백", description = "배송 취소 롤백 API 입니다.")
+  @AuthCheck(roles = {UserRole.ROLE_COMPANY, UserRole.ROLE_HUB, UserRole.ROLE_MASTER})
+  @PatchMapping("/{deliveryId}/cancel/rollback")
+  public ResponseEntity<ApiResponse<Map<String, UUID>>> rollbackCancelDelivery(
+      @PathVariable UUID deliveryId,
+      @CurrentUserInfo CurrentUserInfoDto userInfo) {
+
+
+    UUID updatedDeliveryId = deliveryService.cancelRollbackDeliveryInternal(deliveryId, userInfo);
+
+    return ResponseEntity
+        .status(HttpStatus.OK.value())
+        .body(ApiResponse.of(HttpStatus.OK, "Success", Map.of("deliveryId", updatedDeliveryId)));
+  }
+
   @Operation(summary = "배송 ECHO", description = "배송 ECHO API 입니다.")
   // 편의상 만든 controller 입니다.
   @PostMapping("/hubdelivermanager/assign")

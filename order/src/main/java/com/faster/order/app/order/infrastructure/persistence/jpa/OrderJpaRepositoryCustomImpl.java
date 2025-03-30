@@ -58,8 +58,7 @@ public class OrderJpaRepositoryCustomImpl implements OrderJpaRepositoryCustom {
             role == UserRole.ROLE_MASTER
                 ? searchMasterCondition(condition)
                 : searchCondition(condition, companyId)
-        )
-        .orderBy(orderSpecifiers);
+        );
 
     return PageableExecutionUtils.getPage(dtoList, pageable, () -> countQuery.fetchOne());
   }

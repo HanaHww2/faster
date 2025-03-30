@@ -64,7 +64,12 @@ public enum OrderErrorCode implements ErrorCode {
   FORBIDDEN_SAVE(
       HttpStatus.FORBIDDEN.value(),
       "해당 업체의 주문 생성 대한 접근 권한이 없습니다.",
-      HttpStatus.FORBIDDEN);
+      HttpStatus.FORBIDDEN),
+  FAIL_CANCEL_ORDER(
+      HttpStatus.UNPROCESSABLE_ENTITY.value(),
+      "주문 취소 처리에 실패하였습니다.",
+      HttpStatus.UNPROCESSABLE_ENTITY),
+  ;
 
   private final int code;
   private final String message;

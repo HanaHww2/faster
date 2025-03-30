@@ -8,8 +8,8 @@ import com.faster.order.app.global.exception.OrderErrorCode;
 import com.faster.order.app.order.application.client.CompanyClient;
 import com.faster.order.app.order.application.client.DeliveryClient;
 import com.faster.order.app.order.application.client.ProductClient;
-import com.faster.order.app.order.application.dto.request.GetProductsApplicationResponseDto;
-import com.faster.order.app.order.application.dto.request.GetProductsApplicationResponseDto.GetProductApplicationResponseDto;
+import com.faster.order.app.order.application.dto.response.GetProductsApplicationResponseDto;
+import com.faster.order.app.order.application.dto.response.GetProductsApplicationResponseDto.GetProductApplicationResponseDto;
 import com.faster.order.app.order.application.dto.request.SaveDeliveryApplicationRequestDto;
 import com.faster.order.app.order.application.dto.request.SaveOrderApplicationRequestDto;
 import com.faster.order.app.order.application.dto.request.SaveOrderApplicationRequestDto.SaveOrderItemApplicationRequestDto;
@@ -22,6 +22,7 @@ import com.faster.order.app.order.application.dto.response.GetOrderDetailApplica
 import com.faster.order.app.order.application.dto.response.IGetOrderDetailApplicationResponseDto;
 import com.faster.order.app.order.application.dto.response.InternalConfirmOrderApplicationResponseDto;
 import com.faster.order.app.order.application.dto.response.InternalUpdateOrderStatusApplicationResponseDto;
+import com.faster.order.app.order.application.dto.response.RollbackCancelDeliveryApplicationResponseDto;
 import com.faster.order.app.order.application.dto.response.SaveDeliveryApplicationResponseDto;
 import com.faster.order.app.order.application.dto.response.SearchOrderApplicationResponseDto;
 import com.faster.order.app.order.application.dto.response.UpdateStocksApplicationResponseDto;
@@ -33,11 +34,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 @Transactional(readOnly = true)
@@ -79,6 +82,30 @@ public class OrderServiceImpl implements OrderService {
 
   @Transactional
   @Override
+  public UUID saveOrder(CurrentUserInfoDto userInfo,
+      SaveOrderApplicationRequestDto applicationRequestDto) {
+
+    // 권한 검증
+    // 1. 마스터 - 모든 주문 생성 가능
+    // 2. 업체 담당자 - 해당 업체 주문 생성 가능
+    this.checkIfValidAccessToModify(
+        userInfo, applicationRequestDto.receivingCompanyId(), OrderErrorCode.FORBIDDEN_SAVE);
+
+    Map<UUID, Integer> productStocksMap = applicationRequestDto.toProductStocksMap();
+
+    // 상품 정보 조회하여 검증 로직 수행
+    this.validateOrderRequest(applicationRequestDto, productStocksMap);
+    Order order = applicationRequestDto.toEntity();
+
+    // 재고 차감 요청 수행
+    UpdateStocksApplicationResponseDto updateStocksDto = this.updateStocks(productStocksMap);
+
+    orderRepository.save(order);
+    return order.getId();
+  }
+
+  @Transactional
+  @Override
   public CancelOrderApplicationResponseDto cancelOrderById(CurrentUserInfoDto userInfo, UUID orderId) {
 
     Order order = orderRepository.findByIdAndStatusAndDeletedAtIsNullFetchJoin(orderId, OrderStatus.CONFIRMED)
@@ -90,17 +117,23 @@ public class OrderServiceImpl implements OrderService {
     this.checkIfValidAccessToModify(userInfo, order.getReceivingCompanyId(), OrderErrorCode.FORBIDDEN);
 
     // 1. 배송 취소 처리
-    CancelDeliveryApplicationResponseDto responseDto = deliveryClient.cancelDelivery(order.getDeliveryId());
+    CancelDeliveryApplicationResponseDto responseDto = this.cancelDelivery(order.getDeliveryId());
 
     // 2. 결제 취소 처리 - 생략
 
     // 3. 결제 취소 후 재고 상품 롤백
-    UpdateStocksApplicationResponseDto updateStocksApplicationResponseDto = productClient.updateStocks(
-        UpdateStocksApplicationRequestDto.from(order.getOrderItems()));
+    UpdateStocksApplicationResponseDto updateStocksApplicationResponseDto = null;
+    try {
+      updateStocksApplicationResponseDto = productClient.updateStocks(
+          UpdateStocksApplicationRequestDto.from(order.getOrderItems()));
+    } catch (CustomException e) {
+      this.rollbackCancelDelivery(order.getDeliveryId());
+      throw new CustomException(OrderErrorCode.FAIL_CANCEL_ORDER);
+    }
 
     // 4. 주문 취소
     order.cancel();
-    return CancelOrderApplicationResponseDto.of(order.getId(), order.getStatus());
+    return CancelOrderApplicationResponseDto.from(order);
   }
 
   @Transactional
@@ -121,41 +154,7 @@ public class OrderServiceImpl implements OrderService {
     }
     order.softDelete(userInfo.userId());
   }
-
-  @Transactional
-  @Override
-  public UUID saveOrder(CurrentUserInfoDto userInfo,
-      SaveOrderApplicationRequestDto applicationRequestDto) {
-
-    // 권한 검증
-    // 1. 마스터 - 모든 주문 생성 가능
-    // 2. 업체 담당자 - 해당 업체 주문 생성 가능
-    this.checkIfValidAccessToModify(
-        userInfo, applicationRequestDto.receivingCompanyId(), OrderErrorCode.FORBIDDEN_SAVE);
-
-    Map<UUID, Integer> productStocksMap = applicationRequestDto.toProductStocksMap();
-
-    // 상품 정보 조회하여 검증 로직 수행
-    this.validateOrderRequest(applicationRequestDto, productStocksMap);
-
-    // 재고 차감 요청 수행
-    UpdateStocksApplicationResponseDto updateStocksDto =
-        productClient.updateStocks(UpdateStocksApplicationRequestDto.from(productStocksMap));
-
-    Order order = applicationRequestDto.toEntity();
-    orderRepository.save(order);
-    return order.getId();
-  }
-
-  @Override
-  public IGetOrderDetailApplicationResponseDto internalGetOrderById(UUID orderId) {
-
-    Order order = orderRepository.findByIdAndDeletedAtIsNullFetchJoin(orderId)
-        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
-
-    return IGetOrderDetailApplicationResponseDto.from(order);
-  }
-
+  
   @Transactional
   @Override
   public InternalConfirmOrderApplicationResponseDto internalConfirmOrderById(UUID orderId) {
@@ -167,9 +166,7 @@ public class OrderServiceImpl implements OrderService {
     // 1. 주문 확정
     order.confirm();
     // 2. 배송 생성 요청
-    SaveDeliveryApplicationResponseDto responseDto =
-        deliveryClient.saveDelivery(SaveDeliveryApplicationRequestDto.of(
-            order.getId(), order.getSupplierCompanyId(), order.getReceivingCompanyId()));
+    SaveDeliveryApplicationResponseDto responseDto = this.saveDelivery(order);
     order.assignDeliveryId(responseDto.deliveryId());
 
     return InternalConfirmOrderApplicationResponseDto.of(order.getId(), order.getStatus());
@@ -186,6 +183,72 @@ public class OrderServiceImpl implements OrderService {
     order.updateStatus(OrderStatus.parse(status));
     return InternalUpdateOrderStatusApplicationResponseDto.of(
         order.getId(), order.getStatus().toString());
+  }
+
+  @Override
+  public IGetOrderDetailApplicationResponseDto internalGetOrderById(UUID orderId) {
+
+    Order order = orderRepository.findByIdAndDeletedAtIsNullFetchJoin(orderId)
+        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
+
+    return IGetOrderDetailApplicationResponseDto.from(order);
+  }
+
+  @Override
+  public SaveDeliveryApplicationResponseDto saveDelivery(Order order) {
+    SaveDeliveryApplicationResponseDto responseDto =
+        deliveryClient.saveDelivery(SaveDeliveryApplicationRequestDto.of(
+            order.getId(), order.getSupplierCompanyId(), order.getReceivingCompanyId()));
+    return responseDto;
+  }
+  
+  @Override
+  public UpdateStocksApplicationResponseDto updateStocks(Map<UUID, Integer> productStockMap) {
+
+    return productClient.updateStocks(UpdateStocksApplicationRequestDto.from(productStockMap));
+  }
+  
+  @Override
+  public CancelDeliveryApplicationResponseDto cancelDelivery(UUID deliveryId) {
+
+    return deliveryClient.cancelDelivery(deliveryId);
+  }
+
+  @Transactional
+  @Override
+  public CancelDeliveryApplicationResponseDto cancelDeliveryByOrderId(UUID orderId) {
+
+    Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+        .orElseThrow(() -> new CustomException(OrderErrorCode.UNABLE_CANCEL));
+
+    return this.cancelDelivery(order.getDeliveryId());
+  }
+
+  @Override
+  public void rollbackCancelDelivery(UUID deliveryId) {
+    RollbackCancelDeliveryApplicationResponseDto rollbackCancelDeliveryResponse =
+        deliveryClient.rollbackCancelDelivery(deliveryId);
+  }
+
+  @Transactional
+  @Override
+  public void rollbackUpdateStocksByOrderId(UUID orderId) {
+
+    Order order = orderRepository.findByIdAndDeletedAtIsNullFetchJoin(orderId)
+        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
+
+    UpdateStocksApplicationResponseDto updateStocksApplicationResponseDto =
+        productClient.updateStocks(
+          UpdateStocksApplicationRequestDto.fromForRollback(order.getOrderItems()));
+  }
+
+  @Transactional
+  @Override
+  public void rollbackCancelDeliveryByOrderId(UUID orderId) {
+    Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
+
+   this.rollbackCancelDelivery(order.getDeliveryId());
   }
 
   private void validateOrderRequest(

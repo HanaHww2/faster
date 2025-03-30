@@ -36,4 +36,8 @@ public interface DeliveryService {
       DeliveryRouteUpdateDto deliveryRouteUpdateDto, CurrentUserInfoDto userInfoDto);
 
   List<AssignedDeliveryRouteDto> assignHubDeliveryManagerScheduleService();
+
+  UUID cancelDeliveryInternal(UUID deliveryId, CurrentUserInfoDto userInfo);
+
+  UUID cancelRollbackDeliveryInternal(UUID deliveryId, CurrentUserInfoDto userInfo);
 }

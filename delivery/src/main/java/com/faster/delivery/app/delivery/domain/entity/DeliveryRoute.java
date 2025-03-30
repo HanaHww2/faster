@@ -101,4 +101,12 @@ public class DeliveryRoute extends BaseEntity {
     this.deliveryManagerId = deliveryManagerId;
     this.deliveryManagerName = deliveryManagerName;
   }
+
+  public void cancel() {
+    this.status = Status.CANCELLED;
+  }
+
+  public void rollbackCancel() {
+    this.status = Status.PENDING;
+  }
 }

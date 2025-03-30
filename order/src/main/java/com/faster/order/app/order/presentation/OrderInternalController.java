@@ -3,6 +3,7 @@ package com.faster.order.app.order.presentation;
 import com.common.aop.annotation.AuthCheck;
 import com.common.resolver.dto.UserRole;
 import com.common.response.ApiResponse;
+import com.faster.order.app.order.application.facade.OrderFacade;
 import com.faster.order.app.order.application.usecase.OrderService;
 import com.faster.order.app.order.presentation.dto.request.InternalUpdateOrderStatusRequestDto;
 import com.faster.order.app.order.presentation.dto.response.IGetOrderDetailResponseDto;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class OrderInternalController {
   private final OrderService orderService;
+  private final OrderFacade orderFacade;
 
   @Operation(summary = "주문 조회", description = "주문 조회 API 입니다.")
   @AuthCheck
@@ -51,11 +53,11 @@ public class OrderInternalController {
         .body(new ApiResponse<>(
             "주문 확정이 성공적으로 수행되었습니다.",
             HttpStatus.OK.value(),
-            InternalConfirmOrderResponseDto.from(orderService.internalConfirmOrderById(orderId))));
+            InternalConfirmOrderResponseDto.from(orderFacade.internalConfirmOrderById(orderId))));
   }
 
   @Operation(summary = "주문 상태 수정", description = "주문 상태 수정 API 입니다.")
-  @AuthCheck(roles = {UserRole.ROLE_MASTER, UserRole.ROLE_HUB, UserRole.ROLE_DELIVERY, UserRole.ROLE_COMPANY})
+  @AuthCheck
   @PatchMapping("/{orderId}/status")
   public ResponseEntity<ApiResponse<InternalUpdateOrderStatusResponseDto>> internalUpdateOrderStatusById(
       @PathVariable UUID orderId, @RequestBody InternalUpdateOrderStatusRequestDto requestDto) {

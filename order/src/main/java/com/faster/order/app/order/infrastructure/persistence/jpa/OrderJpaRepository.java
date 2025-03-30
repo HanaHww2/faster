@@ -10,18 +10,16 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface OrderJpaRepository extends JpaRepository<Order, UUID>, OrderJpaRepositoryCustom, OrderRepository {
 
-  Optional<Order> findByIdAndDeletedAtIsNull(UUID orderId);
-
   @Query("""
             select distinct o from Order o 
-            join fetch o.orderItems 
+            join fetch o.orderItems.orderItems 
             join fetch o.ordererInfo 
             where o.id = :orderId and o.deletedAt is null""")
   Optional<Order> findByIdAndDeletedAtIsNullFetchJoin(UUID orderId);
 
   @Query("""
             select distinct o from Order o 
-            join fetch o.orderItems 
+            join fetch o.orderItems.orderItems
             where o.id = :orderId and o.status = :status and o.deletedAt is null""")
   Optional<Order> findByIdAndStatusAndDeletedAtIsNullFetchJoin(UUID orderId, OrderStatus status);
 

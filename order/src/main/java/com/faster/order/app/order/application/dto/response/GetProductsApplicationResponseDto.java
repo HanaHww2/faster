@@ -1,4 +1,4 @@
-package com.faster.order.app.order.application.dto.request;
+package com.faster.order.app.order.application.dto.response;
 
 import java.math.BigDecimal;
 import java.util.Map;

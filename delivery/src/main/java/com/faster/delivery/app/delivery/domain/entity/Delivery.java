@@ -162,4 +162,21 @@ public class Delivery extends BaseEntity {
       deliveryManagerId, String deliveryManagerName) {
     deliveryRoute.updateManager(deliveryManagerId, deliveryManagerName);
   }
+
+  public void cancel() {
+
+    if (!this.status.isPossibleToUpdate(Status.CANCELED)) {
+      throw new CustomException(ApiErrorCode.INVALID_REQUEST);
+    }
+    this.status = Status.CANCELED;
+    this.deliveryRouteList.stream().forEach(DeliveryRoute::cancel);
+  }
+
+  public void rollbackCancel() {
+    if (this.status != Status.CANCELED) {
+      throw new CustomException(ApiErrorCode.INVALID_REQUEST);
+    }
+    this.status = Status.READY;
+    this.deliveryRouteList.stream().forEach(DeliveryRoute::rollbackCancel);
+  }
 }

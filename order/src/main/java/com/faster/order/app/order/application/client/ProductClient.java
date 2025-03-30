@@ -1,6 +1,6 @@
 package com.faster.order.app.order.application.client;
 
-import com.faster.order.app.order.application.dto.request.GetProductsApplicationResponseDto;
+import com.faster.order.app.order.application.dto.response.GetProductsApplicationResponseDto;
 import com.faster.order.app.order.application.dto.request.UpdateStocksApplicationRequestDto;
 import com.faster.order.app.order.application.dto.response.UpdateStocksApplicationResponseDto;
 import java.util.Set;

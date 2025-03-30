@@ -23,6 +23,17 @@ public record UpdateStocksApplicationRequestDto(
         .build();
   }
 
+  public static UpdateStocksApplicationRequestDto fromForRollback(OrderItems orderItems) {
+
+    return UpdateStocksApplicationRequestDto.builder()
+        .updateStockRequests(
+            orderItems.stream()
+                .map(UpdateStockApplicationRequestDto::fromForRollback)
+                .toList()
+        )
+        .build();
+  }
+
   public static UpdateStocksApplicationRequestDto of(List<UpdateStockApplicationRequestDto> updateStockDtoList) {
     return UpdateStocksApplicationRequestDto.builder()
         .updateStockRequests(updateStockDtoList)
@@ -48,6 +59,13 @@ public record UpdateStocksApplicationRequestDto(
       return UpdateStockApplicationRequestDto.builder()
           .id(orderItem.getId())
           .quantity(-orderItem.getQuantity())
+          .build();
+    }
+
+    public static UpdateStockApplicationRequestDto fromForRollback(OrderItem orderItem) {
+      return UpdateStockApplicationRequestDto.builder()
+          .id(orderItem.getId())
+          .quantity(orderItem.getQuantity())
           .build();
     }
 

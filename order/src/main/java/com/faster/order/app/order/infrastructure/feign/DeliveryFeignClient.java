@@ -4,6 +4,7 @@ import com.common.response.ApiResponse;
 import com.faster.order.app.order.infrastructure.feign.dto.request.CancelDeliveryRequestDto;
 import com.faster.order.app.order.infrastructure.feign.dto.request.SaveDeliveryRequestDto;
 import com.faster.order.app.order.infrastructure.feign.dto.response.CancelDeliveryResponseDto;
+import com.faster.order.app.order.infrastructure.feign.dto.response.RollbackCancelDeliveryResponseDto;
 import com.faster.order.app.order.infrastructure.feign.dto.response.SaveDeliveryResponseDto;
 import java.util.UUID;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -20,7 +21,9 @@ public interface DeliveryFeignClient {
   ResponseEntity<ApiResponse<SaveDeliveryResponseDto>> saveDelivery(
       @RequestBody SaveDeliveryRequestDto requestDto);
 
-  @PatchMapping("/internal/deliveries/{deliveryId}")
-  ResponseEntity<ApiResponse<CancelDeliveryResponseDto>> updateDelivery(
-      @PathVariable UUID deliveryId, @RequestBody CancelDeliveryRequestDto requestDto);
+  @PatchMapping("/internal/deliveries/{deliveryId}/cancel")
+  ResponseEntity<ApiResponse<CancelDeliveryResponseDto>> cancelDelivery(@PathVariable UUID deliveryId);
+
+  @PatchMapping("/internal/deliveries/{deliveryId}/cancel/rollback")
+  ResponseEntity<ApiResponse<RollbackCancelDeliveryResponseDto>> rollbackCancelDelivery(@PathVariable UUID deliveryId);
 }

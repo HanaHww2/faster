@@ -1,7 +1,7 @@
 package com.faster.order.app.order.infrastructure;
 
 import com.faster.order.app.order.application.client.ProductClient;
-import com.faster.order.app.order.application.dto.request.GetProductsApplicationResponseDto;
+import com.faster.order.app.order.application.dto.response.GetProductsApplicationResponseDto;
 import com.faster.order.app.order.application.dto.request.UpdateStocksApplicationRequestDto;
 import com.faster.order.app.order.application.dto.response.UpdateStocksApplicationResponseDto;
 import com.faster.order.app.order.infrastructure.feign.ProductFeignClient;
