@@ -17,6 +17,5 @@ spring:
       local: local
       develop: develop
       test: test
-      develop: develop
       prod: prod
     active: local

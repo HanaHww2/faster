@@ -34,6 +34,7 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       schema: faster
+      maximum-pool-size: 20
 eureka:
   instance:
     lease-renewal-interval-in-seconds: 5   # 10초마다 서버에 heartbeat 전송
