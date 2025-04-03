@@ -27,8 +27,7 @@ public class JwtAuthenticationFilter implements WebFilter {
       return tokenProvider.getAuthentication(accessToken)
           .flatMap(authentication ->
               chain.filter(exchange)
-                  .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication)))
-          ;
+                  .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication)));
     } else {
       return chain.filter(exchange); // 토큰이 유효하지 않은 경우 인증을 설정하지 않고 요청을 계속 진행
     }

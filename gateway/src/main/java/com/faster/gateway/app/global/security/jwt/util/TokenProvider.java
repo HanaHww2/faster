@@ -2,6 +2,8 @@ package com.faster.gateway.app.global.security.jwt.util;
 
 import com.common.exception.CustomException;
 import com.faster.gateway.app.global.exception.GatewayErrorCode;
+import com.faster.gateway.app.global.security.service.dto.CustomUserDetails;
+import com.faster.gateway.app.global.security.service.dto.UserDetailsDto;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -41,15 +43,17 @@ public class TokenProvider {
       return null;
     }
     token = token.substring(TOKEN_PREFIX.length());
-    return this.userDetailsService.findByUsername(this.getUserId(token))
-        .map(userDetails -> {
-          // UsernamePasswordAuthenticationToken을 생성하고 반환한다
-          return new UsernamePasswordAuthenticationToken(
-              userDetails,
-              null,  // 비밀번호는 null로 설정
-              userDetails.getAuthorities()
-          );
-        });
+
+    UserDetailsDto userDetailsDto = UserDetailsDto.of(
+        this.getUserId(token), this.getUserRole(token));
+    CustomUserDetails userDetails = CustomUserDetails.builder().userDetailsDto(userDetailsDto).build();
+
+    return Mono.fromSupplier(() ->
+        new UsernamePasswordAuthenticationToken(
+            userDetails,
+            null,  // 비밀번호는 null로 설정
+            userDetails.getAuthorities())
+    );
   }
 
   public boolean validAccessToken(String token) {
@@ -70,6 +74,11 @@ public class TokenProvider {
     }
 
     return this.parseClaims(token).getExpiration();
+  }
+
+  private String getUserRole(String token) {
+    String userRole = this.parseClaims(token).get("userRole", String.class);
+    return userRole;
   }
 
   private String getUserId(String token) {

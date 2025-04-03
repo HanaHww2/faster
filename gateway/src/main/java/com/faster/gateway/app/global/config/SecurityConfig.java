@@ -46,7 +46,7 @@ public class SecurityConfig {
             .anyExchange().authenticated()
         )
         .addFilterAt(this.authenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
-        .addFilterAt(this.exceptionHandlingFilter, SecurityWebFiltersOrder.FORM_LOGIN);
+        .addFilterAt(this.exceptionHandlingFilter, SecurityWebFiltersOrder.LAST);
 
     return http.build();
   }

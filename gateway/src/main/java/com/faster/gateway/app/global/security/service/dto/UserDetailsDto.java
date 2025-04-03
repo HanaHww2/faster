@@ -3,9 +3,11 @@ package com.faster.gateway.app.global.security.service.dto;
 import com.common.resolver.dto.UserRole;
 import java.util.ArrayList;
 import java.util.Collection;
+import lombok.Builder;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+@Builder
 public record UserDetailsDto(
     Long id,
 
@@ -14,7 +16,6 @@ public record UserDetailsDto(
     String password,
 
     UserRole role
-
 ) {
 
   public static UserDetailsDto from(Authenticated user) {
@@ -24,6 +25,13 @@ public record UserDetailsDto(
         user.getPassword(),
         user.getRole()
     );
+  }
+
+  public static UserDetailsDto of(String userId, String userRole) {
+    return UserDetailsDto.builder()
+        .id(Long.valueOf(userId))
+        .role(UserRole.valueOf(userRole))
+        .build();
   }
 
   public Collection<? extends GrantedAuthority> getAuthorities() {

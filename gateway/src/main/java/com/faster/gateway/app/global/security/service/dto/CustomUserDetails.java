@@ -1,10 +1,12 @@
 package com.faster.gateway.app.global.security.service.dto;
 
 import java.util.Collection;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+@Builder
 @RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {
 
