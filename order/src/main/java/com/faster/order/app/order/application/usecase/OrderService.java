@@ -29,6 +29,10 @@ public interface OrderService {
 
   void deleteOrderById(CurrentUserInfoDto userInfo, UUID orderId);
 
+  UpdateStocksApplicationResponseDto decreaseStocks(Map<UUID, Integer> productStockMap);
+
+  UpdateStocksApplicationResponseDto increaseStocks(Map<UUID, Integer> productStockMap);
+
   CancelDeliveryApplicationResponseDto cancelDelivery(UUID deliveryId);
 
   InternalConfirmOrderApplicationResponseDto internalConfirmOrderById(UUID orderId);

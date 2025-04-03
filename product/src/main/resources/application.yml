@@ -7,6 +7,7 @@ spring:
       - classpath:properties/base.yml
       - classpath:properties/datasource.yml
       - classpath:properties/jpa.yml
+      - classpath:properties/redis.yml
       - classpath:properties/cloud.yml
       - classpath:properties/zipkin.yml
   profiles:

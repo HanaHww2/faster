@@ -27,7 +27,26 @@ public class ProductClientImpl implements ProductClient {
   @Override
   public UpdateStocksApplicationResponseDto updateStocks(
       UpdateStocksApplicationRequestDto requests) {
+
     UpdateStocksResponseDto responseDto = productFeignClient.updateStocks(
+        UpdateStocksRequestDto.from(requests)).getBody().data();
+    return responseDto.toApplicationDto();
+  }
+
+  @Override
+  public UpdateStocksApplicationResponseDto decreaseStocks(
+      UpdateStocksApplicationRequestDto requests) {
+
+    UpdateStocksResponseDto responseDto = productFeignClient.decreaseStocks(
+        UpdateStocksRequestDto.from(requests)).getBody().data();
+    return responseDto.toApplicationDto();
+  }
+
+  @Override
+  public UpdateStocksApplicationResponseDto increaseStocks(
+      UpdateStocksApplicationRequestDto requests) {
+
+    UpdateStocksResponseDto responseDto = productFeignClient.increaseStocks(
         UpdateStocksRequestDto.from(requests)).getBody().data();
     return responseDto.toApplicationDto();
   }

@@ -43,6 +43,14 @@ public enum ProductErrorCode implements ErrorCode {
   INVALID_REQUEST(
       HttpStatus.UNPROCESSABLE_ENTITY.value(),
       "상품 생성 정보가 올바르지 않습니다.",
+      HttpStatus.UNPROCESSABLE_ENTITY),
+  NON_LOCK_KEY(
+      HttpStatus.UNPROCESSABLE_ENTITY.value(),
+      "상품 재고 정보가 올바르지 않습니다.",
+      HttpStatus.UNPROCESSABLE_ENTITY),
+  LOCK_PROBLEM(
+      HttpStatus.UNPROCESSABLE_ENTITY.value(),
+      "상품 재고 갱신 오류가 발생하였습니다.",
       HttpStatus.UNPROCESSABLE_ENTITY),;
 
   private final int code;

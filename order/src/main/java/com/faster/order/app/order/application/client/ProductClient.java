@@ -11,4 +11,8 @@ public interface ProductClient {
   GetProductsApplicationResponseDto getProducts(Set<UUID> ids);
 
   UpdateStocksApplicationResponseDto updateStocks(UpdateStocksApplicationRequestDto requests);
+
+  UpdateStocksApplicationResponseDto decreaseStocks(UpdateStocksApplicationRequestDto requests);
+
+  UpdateStocksApplicationResponseDto increaseStocks(UpdateStocksApplicationRequestDto requests);
 }

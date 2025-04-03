@@ -4,6 +4,7 @@ import com.common.exception.CustomException;
 import com.common.resolver.dto.CurrentUserInfoDto;
 import com.common.resolver.dto.UserRole;
 import com.common.response.PageResponse;
+import com.faster.product.app.global.aop.annotation.DistributedLock;
 import com.faster.product.app.global.exception.ProductErrorCode;
 import com.faster.product.app.product.application.client.CompanyClient;
 import com.faster.product.app.product.application.client.HubClient;
@@ -13,6 +14,8 @@ import com.faster.product.app.product.application.dto.request.SortedUpdateStocks
 import com.faster.product.app.product.application.dto.request.SortedUpdateStocksApplicationRequestDto.UpdateStockApplicationRequestDto;
 import com.faster.product.app.product.application.dto.request.UpdateProductApplicationRequestDto;
 import com.faster.product.app.product.application.dto.request.UpdateProductHubApplicationRequestDto;
+import com.faster.product.app.product.application.dto.request.UpdateStocksApplicationRequestDto;
+import com.faster.product.app.product.application.dto.request.UpdateStocksDBApplicationRequestDto;
 import com.faster.product.app.product.application.dto.response.GetCompanyApplicationResponseDto;
 import com.faster.product.app.product.application.dto.response.GetCompanyApplicationResponseDto.CompanyType;
 import com.faster.product.app.product.application.dto.response.GetHubsApplicationResponseDto.HubInfo;
@@ -23,14 +26,23 @@ import com.faster.product.app.product.application.dto.response.UpdateStocksAppli
 import com.faster.product.app.product.application.dto.response.GetProductDetailApplicationResponseDto;
 import com.faster.product.app.product.application.dto.response.UpdateProductApplicationResponseDto;
 import com.faster.product.app.product.application.dto.request.SaveProductApplicationRequestDto;
+import com.faster.product.app.product.application.event.UpdateStocksEvent;
+import com.faster.product.app.product.application.event.UpdateStocksEvent.UpdateStockEvent;
 import com.faster.product.app.product.domain.entity.Product;
 import com.faster.product.app.product.domain.repository.ProductRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,6 +56,7 @@ public class ProductServiceImpl implements ProductService {
   private final ProductRepository productRepository;
   private final CompanyClient companyClient;
   private final HubClient hubClient;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Override
   public PageResponse<SearchProductApplicationResponseDto> getProductsByCondition(CurrentUserInfoDto userInfo,
@@ -148,15 +161,79 @@ public class ProductServiceImpl implements ProductService {
     productRepository.deleteProductByCompanyId(companyId, userInfo.userId());
   }
 
-  private boolean processUpdateStock(UUID productId, Integer quantity) {
+  @DistributedLock(keys = "#updateStocksDto.updateStockRequests.![id]")
+  @Override
+  public UpdateStocksApplicationResponseDto decreaseProductStocksInternalRedis(
+      UpdateStocksApplicationRequestDto updateStocksDto) {
 
-    Product product = productRepository.findByIdAndDeletedAtIsNullWithPessimisticLock(productId)
-        .orElseThrow(() -> new CustomException(ProductErrorCode.INVALID_ID));
-    boolean result = product.updateStock(quantity);
-    if (!result) {
-      throw new CustomException(ProductErrorCode.NOT_ENOUGH_STOCK);
+    SortedMap<UUID, Integer> sortedStockMap = updateStocksDto.getSortedStockMap();
+
+    // 재고가 충분한지 검증
+    for (Entry<UUID, Integer> item : sortedStockMap.entrySet()) {
+
+      UUID productId = item.getKey();
+      Integer stock = productRepository.getStock(productId);
+      if (stock < item.getValue()) {
+        throw new CustomException(ProductErrorCode.NOT_ENOUGH_STOCK);
+      }
     }
-    return result;
+
+    // 재고 감소
+    List<UpdateStockApplicationResponseDto> applicationResponses = new ArrayList<>();
+    List<UpdateStockEvent> stockEvents = new ArrayList<>();
+    for (Entry<UUID, Integer> item : sortedStockMap.entrySet()) {
+
+      UUID productId = item.getKey();
+      Long stock = productRepository.decreaseStockByKey(productId, item.getValue());
+      boolean result = stock >= 0 ? true : false;
+      applicationResponses.add(UpdateStockApplicationResponseDto.of(productId, result));
+      stockEvents.add(UpdateStockEvent.of(productId, stock));
+    }
+
+    eventPublisher.publishEvent(UpdateStocksEvent.of(stockEvents));
+    return UpdateStocksApplicationResponseDto.from(applicationResponses);
+  }
+
+  @DistributedLock(keys = "#updateStocksDto.updateStockRequests.![id]")
+  @Override
+  public UpdateStocksApplicationResponseDto increaseProductStocksInternalRedis(
+      UpdateStocksApplicationRequestDto updateStocksDto) {
+
+    SortedMap<UUID, Integer> sortedStockMap = updateStocksDto.getSortedStockMap();
+
+    // 재고 증가
+    List<UpdateStockApplicationResponseDto> applicationResponses = new ArrayList<>();
+    List<UpdateStockEvent> stockEvents = new ArrayList<>();
+    for (Entry<UUID, Integer> item : sortedStockMap.entrySet()) {
+
+      UUID productId = item.getKey();
+      productRepository.getStock(productId); // 레디스에 데이터 갱신
+      Long stock = productRepository.increaseStockByKey(productId, item.getValue());
+      boolean result = stock >= 0 ? true : false;
+      applicationResponses.add(UpdateStockApplicationResponseDto.of(productId, result));
+      stockEvents.add(UpdateStockEvent.of(productId, stock));
+    }
+
+    eventPublisher.publishEvent(UpdateStocksEvent.of(stockEvents));
+    return UpdateStocksApplicationResponseDto.from(applicationResponses);
+  }
+
+  @Transactional
+  @Override
+  public void updateStocksEvent(UpdateStocksDBApplicationRequestDto requestDto) {
+
+    SortedMap<UUID, Integer> stocksMap = requestDto.toSortedStocksMap();
+    List<Product> products = productRepository.findByIdInAndDeletedAtIsNull(stocksMap.keySet());
+    Map<UUID, Product> productMap = products.stream()
+        .collect(Collectors.toMap(
+            Product::getId,
+            Function.identity()
+        ));
+
+    for (Entry<UUID, Integer> stock : stocksMap.entrySet()) {
+      Product product = productMap.get(stock.getKey());
+      product.updateStockFinal(stock.getValue());
+    }
   }
 
   private GetCompanyApplicationResponseDto getAndCheckIfValidAccessToModify(
@@ -193,6 +270,17 @@ public class ProductServiceImpl implements ProductService {
       return companyClient.getCompanyByCompanyManagerId(userInfo.userId());
     }
     return null;
+  }
+
+  private boolean processUpdateStock(UUID productId, Integer quantity) {
+
+    Product product = productRepository.findByIdAndDeletedAtIsNullWithPessimisticLock(productId)
+        .orElseThrow(() -> new CustomException(ProductErrorCode.INVALID_ID));
+    boolean result = product.updateStock(quantity);
+    if (!result) {
+      throw new CustomException(ProductErrorCode.NOT_ENOUGH_STOCK);
+    }
+    return result;
   }
 
   private HubInfo getHubById(UUID hubId, ProductErrorCode errorCode) {

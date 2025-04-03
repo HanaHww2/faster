@@ -23,4 +23,11 @@ public interface ProductFeignClient {
   ResponseEntity<ApiResponse<UpdateStocksResponseDto>> updateStocks(
       @RequestBody UpdateStocksRequestDto requests);
 
+  @PatchMapping("/internal/products/stocks/decrease")
+  ResponseEntity<ApiResponse<UpdateStocksResponseDto>> decreaseStocks(
+      @RequestBody UpdateStocksRequestDto requests);
+
+  @PatchMapping("/internal/products/stocks/increase")
+  ResponseEntity<ApiResponse<UpdateStocksResponseDto>> increaseStocks(
+      @RequestBody UpdateStocksRequestDto requests);
 }

@@ -43,7 +43,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-@Transactional(readOnly = true)
 public class OrderServiceImpl implements OrderService {
 
   private final OrderRepository orderRepository;
@@ -51,6 +50,7 @@ public class OrderServiceImpl implements OrderService {
   private final CompanyClient companyClient;
   private final DeliveryClient deliveryClient;
 
+  @Transactional(readOnly = true)
   @Override
   public PageResponse<SearchOrderApplicationResponseDto> getOrdersByCondition(CurrentUserInfoDto userInfo,
       Pageable pageable, SearchOrderConditionDto condition) {
@@ -66,6 +66,7 @@ public class OrderServiceImpl implements OrderService {
     return PageResponse.from(pageList);
   }
 
+  @Transactional(readOnly = true)
   @Override
   public GetOrderDetailApplicationResponseDto getOrderById(CurrentUserInfoDto userInfo, UUID orderId) {
 
@@ -80,7 +81,7 @@ public class OrderServiceImpl implements OrderService {
     return GetOrderDetailApplicationResponseDto.from(order);
   }
 
-  @Transactional
+  //@Transactional
   @Override
   public UUID saveOrder(CurrentUserInfoDto userInfo,
       SaveOrderApplicationRequestDto applicationRequestDto) {
@@ -98,7 +99,7 @@ public class OrderServiceImpl implements OrderService {
     Order order = applicationRequestDto.toEntity();
 
     // 재고 차감 요청 수행
-    UpdateStocksApplicationResponseDto updateStocksDto = this.updateStocks(productStocksMap);
+    UpdateStocksApplicationResponseDto updateStocksDto = this.decreaseStocks(productStocksMap);
 
     orderRepository.save(order);
     return order.getId();
@@ -124,7 +125,7 @@ public class OrderServiceImpl implements OrderService {
     // 3. 결제 취소 후 재고 상품 롤백
     UpdateStocksApplicationResponseDto updateStocksApplicationResponseDto = null;
     try {
-      updateStocksApplicationResponseDto = productClient.updateStocks(
+      updateStocksApplicationResponseDto = productClient.increaseStocks(
           UpdateStocksApplicationRequestDto.from(order.getOrderItems()));
     } catch (CustomException e) {
       this.rollbackCancelDelivery(order.getDeliveryId());
@@ -185,6 +186,7 @@ public class OrderServiceImpl implements OrderService {
         order.getId(), order.getStatus().toString());
   }
 
+  @Transactional(readOnly = true)
   @Override
   public IGetOrderDetailApplicationResponseDto internalGetOrderById(UUID orderId) {
 
@@ -192,6 +194,37 @@ public class OrderServiceImpl implements OrderService {
         .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
 
     return IGetOrderDetailApplicationResponseDto.from(order);
+  }
+
+  @Transactional
+  @Override
+  public CancelDeliveryApplicationResponseDto cancelDeliveryByOrderId(UUID orderId) {
+
+    Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+        .orElseThrow(() -> new CustomException(OrderErrorCode.UNABLE_CANCEL));
+
+    return this.cancelDelivery(order.getDeliveryId());
+  }
+
+  @Transactional
+  @Override
+  public void rollbackUpdateStocksByOrderId(UUID orderId) {
+
+    Order order = orderRepository.findByIdAndDeletedAtIsNullFetchJoin(orderId)
+        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
+
+    UpdateStocksApplicationResponseDto updateStocksApplicationResponseDto =
+        productClient.updateStocks(
+            UpdateStocksApplicationRequestDto.fromForRollback(order.getOrderItems()));
+  }
+
+  @Transactional
+  @Override
+  public void rollbackCancelDeliveryByOrderId(UUID orderId) {
+    Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
+
+    this.rollbackCancelDelivery(order.getDeliveryId());
   }
 
   @Override
@@ -207,6 +240,18 @@ public class OrderServiceImpl implements OrderService {
 
     return productClient.updateStocks(UpdateStocksApplicationRequestDto.from(productStockMap));
   }
+
+  @Override
+  public UpdateStocksApplicationResponseDto decreaseStocks(Map<UUID, Integer> productStockMap) {
+
+    return productClient.decreaseStocks(UpdateStocksApplicationRequestDto.from(productStockMap));
+  }
+
+  @Override
+  public UpdateStocksApplicationResponseDto increaseStocks(Map<UUID, Integer> productStockMap) {
+
+    return productClient.increaseStocks(UpdateStocksApplicationRequestDto.from(productStockMap));
+  }
   
   @Override
   public CancelDeliveryApplicationResponseDto cancelDelivery(UUID deliveryId) {
@@ -214,41 +259,11 @@ public class OrderServiceImpl implements OrderService {
     return deliveryClient.cancelDelivery(deliveryId);
   }
 
-  @Transactional
-  @Override
-  public CancelDeliveryApplicationResponseDto cancelDeliveryByOrderId(UUID orderId) {
-
-    Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
-        .orElseThrow(() -> new CustomException(OrderErrorCode.UNABLE_CANCEL));
-
-    return this.cancelDelivery(order.getDeliveryId());
-  }
-
   @Override
   public void rollbackCancelDelivery(UUID deliveryId) {
+
     RollbackCancelDeliveryApplicationResponseDto rollbackCancelDeliveryResponse =
         deliveryClient.rollbackCancelDelivery(deliveryId);
-  }
-
-  @Transactional
-  @Override
-  public void rollbackUpdateStocksByOrderId(UUID orderId) {
-
-    Order order = orderRepository.findByIdAndDeletedAtIsNullFetchJoin(orderId)
-        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
-
-    UpdateStocksApplicationResponseDto updateStocksApplicationResponseDto =
-        productClient.updateStocks(
-          UpdateStocksApplicationRequestDto.fromForRollback(order.getOrderItems()));
-  }
-
-  @Transactional
-  @Override
-  public void rollbackCancelDeliveryByOrderId(UUID orderId) {
-    Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
-        .orElseThrow(() -> new CustomException(OrderErrorCode.INVALID_ORDER_ID));
-
-   this.rollbackCancelDelivery(order.getDeliveryId());
   }
 
   private void validateOrderRequest(

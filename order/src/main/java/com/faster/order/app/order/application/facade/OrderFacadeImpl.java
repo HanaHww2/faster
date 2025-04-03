@@ -31,8 +31,8 @@ public class OrderFacadeImpl implements OrderFacade {
       throw e;
     } catch (RuntimeException e) { // 그 외 예외 발생시,
 
-      Map<UUID, Integer> productStocksMap = applicationRequestDto.toProductStocksMapForRollback();
-      orderService.updateStocks(productStocksMap);
+      Map<UUID, Integer> productStocksMap = applicationRequestDto.toProductStocksMap();
+      orderService.increaseStocks(productStocksMap);
       throw e;
     } // 트랜잭션 롤백이 안되는 기타 예외 경우에는 - 에러 정보 추가 확인 필요
 
@@ -42,7 +42,6 @@ public class OrderFacadeImpl implements OrderFacade {
   @Transactional
   @Override
   public InternalConfirmOrderApplicationResponseDto internalConfirmOrderById(UUID orderId) {
-
 
     InternalConfirmOrderApplicationResponseDto confirmResponseDto = null;
     try {

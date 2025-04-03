@@ -2,6 +2,7 @@ package com.faster.product.app.product.presentation.dto.request;
 
 import com.faster.product.app.product.application.dto.request.SortedUpdateStocksApplicationRequestDto;
 import com.faster.product.app.product.application.dto.request.SortedUpdateStocksApplicationRequestDto.UpdateStockApplicationRequestDto;
+import com.faster.product.app.product.application.dto.request.UpdateStocksApplicationRequestDto;
 import jakarta.validation.constraints.NotEmpty;
 import java.util.Comparator;
 import java.util.List;
@@ -15,8 +16,18 @@ public record UpdateStocksRequestDto(
     return SortedUpdateStocksApplicationRequestDto.builder()
         .sortedUpdateStockRequests(
             updateStockRequests.stream()
-                .map(UpdateStockRequestDto::toApplicationRequestDto)
+                .map(UpdateStockRequestDto::toSortedApplicationRequestDto)
                 .sorted(Comparator.comparing(UpdateStockApplicationRequestDto::id))
+                .toList()
+        )
+        .build();
+  }
+
+  public UpdateStocksApplicationRequestDto toApplicationRequestDto() {
+    return UpdateStocksApplicationRequestDto.builder()
+        .updateStockRequests(
+            updateStockRequests.stream()
+                .map(UpdateStockRequestDto::toApplicationRequestDto)
                 .toList()
         )
         .build();
@@ -26,8 +37,16 @@ public record UpdateStocksRequestDto(
       UUID id,
       Integer quantity
   ) {
-    public UpdateStockApplicationRequestDto toApplicationRequestDto() {
+
+    public UpdateStockApplicationRequestDto toSortedApplicationRequestDto() {
       return UpdateStockApplicationRequestDto.builder()
+          .id(id)
+          .quantity(quantity)
+          .build();
+    }
+
+    public UpdateStocksApplicationRequestDto.UpdateStockApplicationRequestDto toApplicationRequestDto() {
+      return UpdateStocksApplicationRequestDto.UpdateStockApplicationRequestDto.builder()
           .id(id)
           .quantity(quantity)
           .build();

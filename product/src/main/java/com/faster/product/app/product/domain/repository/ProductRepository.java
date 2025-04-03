@@ -1,7 +1,6 @@
 package com.faster.product.app.product.domain.repository;
 
 import com.common.resolver.dto.UserRole;
-import com.common.response.PageResponse;
 import com.faster.product.app.product.domain.criteria.SearchProductCriteria;
 import com.faster.product.app.product.domain.entity.Product;
 import java.util.List;
@@ -15,18 +14,24 @@ public interface ProductRepository {
 
   Optional<Product> findByIdAndDeletedAtIsNull(UUID productId);
 
-  Product save(Product product);
-
   List<Product> findByIdInAndDeletedAtIsNull(Set<UUID> ids);
+
+  Optional<Product> findByIdAndDeletedAtIsNullWithPessimisticLock(UUID productId);
 
   Page<Product> getProductsByConditionAndCompanyId(
       Pageable pageable, SearchProductCriteria criteria, UUID companyId, UserRole role);
 
-  Optional<Product> findByIdAndDeletedAtIsNullWithPessimisticLock(UUID productId);
+  Product save(Product product);
 
   <S extends Product> List<S> saveAll(Iterable<S> entities);
 
   void updateProductHubByCompanyId(UUID companyId, UUID hubId, Long userId);
 
   void deleteProductByCompanyId(UUID companyId, Long userId);
+
+  Integer getStock(UUID productId);
+
+  Long decreaseStockByKey(UUID productId, Integer value);
+
+  Long increaseStockByKey(UUID productId, Integer value);
 }

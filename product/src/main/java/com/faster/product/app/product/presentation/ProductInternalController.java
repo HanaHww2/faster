@@ -82,6 +82,38 @@ public class ProductInternalController {
         ));
   }
 
+  @Operation(summary = "상품 재고 감소", description = "상품 재고 감소 API 입니다.")
+  @AuthCheck(roles={UserRole.ROLE_MASTER, UserRole.ROLE_COMPANY})
+  @PatchMapping("/stocks/decrease")
+  public ResponseEntity<ApiResponse<UpdateStocksResponseDto>> decreaseProductStocks(
+      @RequestBody @Valid UpdateStocksRequestDto requestDto
+  ) {
+
+    return ResponseEntity.ok()
+        .body(new ApiResponse<>(
+            "상품 재고가 성공적으로 수정되었습니다.",
+            HttpStatus.OK.value(),
+            UpdateStocksResponseDto.from(
+                productService.decreaseProductStocksInternalRedis(requestDto.toApplicationRequestDto()))
+        ));
+  }
+
+  @Operation(summary = "상품 재고 증가", description = "상품 재고 증가 API 입니다.")
+  @AuthCheck(roles={UserRole.ROLE_MASTER, UserRole.ROLE_COMPANY})
+  @PatchMapping("/stocks/increase")
+  public ResponseEntity<ApiResponse<UpdateStocksResponseDto>> increaseProductStocks(
+      @RequestBody @Valid UpdateStocksRequestDto requestDto
+  ) {
+
+    return ResponseEntity.ok()
+        .body(new ApiResponse<>(
+            "상품 재고가 성공적으로 수정되었습니다.",
+            HttpStatus.OK.value(),
+            UpdateStocksResponseDto.from(
+                productService.increaseProductStocksInternalRedis(requestDto.toApplicationRequestDto()))
+        ));
+  }
+
   @Operation(summary = "상품 삭제", description = "상품 삭제 API 입니다.")
   @AuthCheck(roles={UserRole.ROLE_MASTER, UserRole.ROLE_COMPANY})
   @DeleteMapping

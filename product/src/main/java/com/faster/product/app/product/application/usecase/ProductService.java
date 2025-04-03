@@ -7,6 +7,8 @@ import com.faster.product.app.product.application.dto.request.SearchProductCondi
 import com.faster.product.app.product.application.dto.request.SortedUpdateStocksApplicationRequestDto;
 import com.faster.product.app.product.application.dto.request.UpdateProductApplicationRequestDto;
 import com.faster.product.app.product.application.dto.request.UpdateProductHubApplicationRequestDto;
+import com.faster.product.app.product.application.dto.request.UpdateStocksApplicationRequestDto;
+import com.faster.product.app.product.application.dto.request.UpdateStocksDBApplicationRequestDto;
 import com.faster.product.app.product.application.dto.response.SearchProductApplicationResponseDto;
 import com.faster.product.app.product.application.dto.response.UpdateProductHubApplicationResponseDto;
 import com.faster.product.app.product.application.dto.response.UpdateStocksApplicationResponseDto;
@@ -39,4 +41,12 @@ public interface ProductService {
       CurrentUserInfoDto userInfo, UpdateProductHubApplicationRequestDto applicationDto);
 
   void deleteProductByCompanyIdInternal(CurrentUserInfoDto userInfo, UUID companyId);
+
+  UpdateStocksApplicationResponseDto decreaseProductStocksInternalRedis(
+      UpdateStocksApplicationRequestDto updateStocksDto);
+
+  UpdateStocksApplicationResponseDto increaseProductStocksInternalRedis(
+      UpdateStocksApplicationRequestDto updateStocksDto);
+
+  void updateStocksEvent(UpdateStocksDBApplicationRequestDto from);
 }
