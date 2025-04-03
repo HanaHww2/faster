@@ -17,21 +17,23 @@
     </appender>
 
     <springProfile name="!(prod|develop)">
-        <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
-        </root>
-    </springProfile>
 
-    <springProfile name="(prod|develop)">
-        <property name="INFO_FILE" value="${LOG_TEMP}/spring.log}"/>
         <property name="ERROR_FILE" value="${LOG_TEMP}/spring_error.log}"/>
-
-        <include resource="./logback/info-file-appender.xml"/>
         <include resource="./logback/error-file-appender.xml"/>
 
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="INFO_LOG"/>
+            <appender-ref ref="ERROR_LOG"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="(prod|develop)">
+
+        <property name="INFO_FILE" value="${LOG_TEMP}/spring.log}"/>
+        <include resource="./logback/info-file-appender.xml"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
             <appender-ref ref="ERROR_LOG"/>
         </root>
     </springProfile>

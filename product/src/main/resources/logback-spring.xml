@@ -17,8 +17,12 @@
     </appender>
 
     <springProfile name="!(prod|develop)">
+        <property name="ERROR_FILE" value="${LOG_TEMP}/spring_error.log}"/>
+        <include resource="./logback/error-file-appender.xml"/>
+
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ERROR_LOG"/>
         </root>
     </springProfile>
 
