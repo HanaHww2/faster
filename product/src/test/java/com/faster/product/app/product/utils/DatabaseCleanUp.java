@@ -1,4 +1,4 @@
-package utils;
+package com.faster.product.app.product.utils;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.Entity;
